@@ -4,8 +4,11 @@
   "description": "Sync your Apple Music listening status (track, artist, elapsed time) straight into Discord Rich Presence on macOS, with cover art!",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "prod": "node dist/index.js"
   },
+  
   "keywords": [],
   "author": "InsertCreativeNameHere",
   "license": "ISC",
@@ -14,5 +17,13 @@
     "axios": "^1.10.0",
     "discord-rpc": "^4.0.1",
     "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/discord-rpc": "^4.0.9",
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^24.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

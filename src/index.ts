@@ -22,6 +22,11 @@ const applescriptString = `
     end tell`;
 
 
+function secondsToMinutes(seconds: number): string {
+  const minutes = Math.floor(seconds/60);
+  const remainingSeconds = seconds % 60;
+  return minutes + ":" + Math.round(remainingSeconds);
+}
 
 async function getMusicInfo(): Promise<TrackInfo> {
   return new Promise((resolve, reject) => {
@@ -45,11 +50,16 @@ async function getMusicInfo(): Promise<TrackInfo> {
 
 
 
-typewriter("Initializing MusicCord-RPC...");
 async function main(){
     try{
-        const musicInfo = await getMusicInfo();
-        console.log("Now Playing: ", musicInfo);
+        await typewriter("Initializing MusicCord-RPC...\n");
+        await new Promise(r => setTimeout(r, 500)); // single line timeout
+
+        const info = await getMusicInfo();
+        const songDuration = secondsToMinutes(info.position) + " / " + secondsToMinutes(info.duration); 
+        const message = "Now Playing: " + info.name + " by " + info.artist + "\nStatus: " + info.state + "\n" + songDuration;
+        await typewriter(message, 30);
+
     }catch(error){
         console.error("Error fetching info: ", error);
     }

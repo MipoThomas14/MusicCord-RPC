@@ -46,4 +46,14 @@ async function getMusicInfo(): Promise<TrackInfo> {
 
 
 typewriter("Initializing MusicCord-RPC...");
+async function main(){
+    try{
+        const musicInfo = await getMusicInfo();
+        console.log("Now Playing: ", musicInfo);
+    }catch(error){
+        console.error("Error fetching info: ", error);
+    }
+}
 
+
+main();

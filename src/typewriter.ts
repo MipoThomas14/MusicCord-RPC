@@ -1,5 +1,5 @@
 
-async function typewriterF(message: string, speed: number | null): Promise<void> {
+async function typewrite(message: string, speed: number | null): Promise<void> {
     if (speed == null) {
       speed = 50;
     }
@@ -15,4 +15,4 @@ async function typewriterF(message: string, speed: number | null): Promise<void>
 }
 
 
-module.exports = { typewriterF };
+export { typewrite };

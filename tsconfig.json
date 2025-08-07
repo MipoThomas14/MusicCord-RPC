@@ -3,9 +3,15 @@
     "target": "ES2020",
     "module": "esnext",
     "strict": true,
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+  },
+  "ts-node": {
+    "esm": true
   },
   "include": ["src/**/*"]
 }

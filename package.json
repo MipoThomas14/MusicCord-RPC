@@ -4,11 +4,12 @@
   "description": "Sync your Apple Music listening status (track, artist, elapsed time) straight into Discord Rich Presence on macOS, with cover art!",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "ts-node-esm src/index.ts",
     "build": "tsc",
     "prod": "node dist/index.js"
   },
-
+  
+  "type": "module",
   "keywords": [],
   "author": "InsertCreativeNameHere",
   "license": "ISC",
@@ -23,7 +24,7 @@
     "@types/discord-rpc": "^4.0.9",
     "@types/dotenv": "^6.1.1",
     "@types/node": "^24.0.1",
-    "ts-node": "^10.9.2",
+    "ts-node": "^10.9.1",
     "typescript": "^5.8.3"
   }
 }

@@ -1,18 +1,17 @@
 // imports
-//import axios from 'axios';
-// @ts-ignore
+import RPC from "discord-rpc";
 import { getMusicInfo } from "./music.ts";
 import { typewrite } from "./typewriter.ts";
-import { fetchCoverArt } from "./coverArt.ts";
+import { fetchCoverArt } from "./coverart.ts";
 import type { TrackInfo } from "./types/track.ts";
 
-import RPC from "discord-rpc";
-const client = new RPC.Client({ transport: "ipc" });
 const clientId = "1383582633547792505";
+const client = new RPC.Client({ transport: "ipc" });
 
-let lastTrackKey = "";
+let lastTrackKey: string;
 let lastState: TrackInfo["state"] | null = null;
 const coverArtCache = new Map<string, string | null>();
+
 
 // Helper functions
 function parseTrackInfo(info: TrackInfo) {
@@ -64,6 +63,7 @@ async function startRPC() {
     } else {
       artUrl = await fetchCoverArt(info.name, info.artist);
       coverArtCache.set(trackKey, artUrl);
+      console.log(artUrl);
     }
 
     let errorThresholdMet = false;

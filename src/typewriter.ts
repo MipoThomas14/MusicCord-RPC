@@ -1,5 +1,4 @@
-
-async function typewrite(message: string, speed: number | null): Promise<void> {
+export async function typewrite(message: string, speed: number | null): Promise<void> {
     if (speed == null) {
       speed = 50;
     }
@@ -9,10 +8,8 @@ async function typewrite(message: string, speed: number | null): Promise<void> {
       process.stdout.write(char);
       await new Promise(r => setTimeout(r, speed));
     }
+    
     process.stdout.write("\n");
     resolve();
   });
 }
-
-
-export { typewrite };

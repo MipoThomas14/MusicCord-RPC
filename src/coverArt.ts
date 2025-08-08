@@ -1,11 +1,8 @@
-const applescript = await import("applescript");
 import axios from "axios";
-
 
 interface RecordingSearchResponse {
   recordings: { id: string; releases?: { id: string }[] }[];
 }
-
 
 async function fetchCoverArt(
   name: string,
@@ -63,7 +60,7 @@ async function fetchCoverArt(
     }
   }
 
-  return `https://coverartarchive.org/release/${mbid}/front-250`;
+  return null;
 }
 
 export { fetchCoverArt };

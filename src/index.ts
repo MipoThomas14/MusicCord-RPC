@@ -114,6 +114,12 @@ async function startRPC() {
       coverArtCache.set(trackKey, artUrl);
     }
 
+    let errorThresholdMet = false;
+    if (artUrl == null && !errorThresholdMet) {
+      console.warn("unable to fetch cover art for this track");
+      errorThresholdMet = true;
+    }
+
     if (trackKey !== lastTrackKey || lastState != info.state) {
       lastTrackKey = trackKey;
       lastState = info.state;

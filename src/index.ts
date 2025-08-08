@@ -79,9 +79,8 @@ async function startRPC() {
       client.setActivity({
         details:
           info.state === "playing" || info.state === "paused"
-            ? "Listening to " + info.name
-            : "Not listening",
-        state: info.state === "playing" ? `by ${info.artist}` : undefined,
+            ? "Listening to " + info.name + " - " + info.artist : "Not listening",
+        state: info.state === "playing" ? info.album : undefined,
         largeImageKey: artUrl ?? "applemusicrp_logo",
         startTimestamp: Date.now() - info.position * 1000,
         smallImageText: info.state,

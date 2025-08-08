@@ -4,7 +4,7 @@ interface RecordingSearchResponse {
   recordings: { id: string; releases?: { id: string }[] }[];
 }
 
-async function fetchCoverArt(
+export async function fetchCoverArt(
   name: string,
   artist: string
 ): Promise<string | null> {
@@ -62,5 +62,3 @@ async function fetchCoverArt(
 
   return null;
 }
-
-export { fetchCoverArt };

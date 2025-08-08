@@ -33,6 +33,11 @@ function secondsToMinutes(seconds: number): string {
   return minutes + ":" + Math.round(remainingSeconds);
 }
 
+function buildSongShareURL(name: string, artist: string): string {
+  const term = encodeURIComponent(`${artist} ${name}`);
+  return `https://music.apple.com/${'us'}/search?term=${term}`;
+}
+
 
 
 // Main loop
@@ -63,7 +68,6 @@ async function startRPC() {
     } else {
       artUrl = await fetchCoverArt(info.name, info.artist);
       coverArtCache.set(trackKey, artUrl);
-      console.log(artUrl);
     }
 
     let errorThresholdMet = false;
@@ -85,7 +89,11 @@ async function startRPC() {
         startTimestamp: Date.now() - info.position * 1000,
         smallImageText: info.state,
         smallImageKey: info.state === "playing" ? "play_icon" : "pause_icon",
-      });
+      
+        buttons: [
+          {label: "Open in Apple Music", url: buildSongShareURL(info.name, info.artist)}
+        ]
+      } as any);
     }
   }, 10_000);
 }

@@ -105,5 +105,5 @@ client.on("ready", () => {
 
 client.login({ clientId }).catch((err) => {
   console.error("❌ RPC login failed:", err);
-  process.exit(1);
+  // process.exit(1);
 });

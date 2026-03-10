@@ -1,37 +1,22 @@
 // imports
 import RPC from "discord-rpc";
+
 import { getMusicInfo } from "./music.ts";
 import { typewrite } from "./typewriter.ts";
 import { fetchCoverArt } from "./coverart.ts";
 import type { TrackInfo } from "./types/track.ts";
 
+const RETRY_MS = 15_000;
 const clientId = "1383582633547792505";
-const client = new RPC.Client({ transport: "ipc" });
+
+let isWaiting = false;
+let client: RPC.Client | null = null;
+let pollInterval: NodeJS.Timeout | null = null;
 
 let lastTrackKey: string;
 let lastState: TrackInfo["state"] | null = null;
 const coverArtCache = new Map<string, string | null>();
 
-
-// Helper functions
-function parseTrackInfo(info: TrackInfo) {
-  const songDuration = secondsToMinutes(info.position) + " / " + secondsToMinutes(info.duration);
-  let message = "Now playing: " + info.name + " by " + info.artist + "\n" + "Duration: " + songDuration + "\n" + "Status: " + info.state;
-
-  if (info.state == "not running") {
-    return "Apple music not currently running.";
-  } else if (info.state == "idle") {
-    return "Currently Idling!";
-  }
-
-  return message;
-}
-
-function secondsToMinutes(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return minutes + ":" + Math.round(remainingSeconds);
-}
 
 function buildSongShareURL(name: string, artist: string): string {
   const term = encodeURIComponent(`${artist} ${name}`);
@@ -40,28 +25,67 @@ function buildSongShareURL(name: string, artist: string): string {
 
 
 
+// Connection management
+
+function scheduleReconnect() {
+  if (!isWaiting) {
+    isWaiting = true;
+    console.log(`Waiting for Discord... (retrying every ${RETRY_MS / 1000}s)`);
+  }
+  setTimeout(connect, RETRY_MS);
+}
+
+function connect() {
+  // Cancel any leftover poll loop from a previous connection
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+
+  client = new RPC.Client({ transport: "ipc" });
+
+  client.on("ready", () => {
+    isWaiting = false;
+    console.log("Discord RPC connected");
+    startRPC();
+  });
+
+  client.on("disconnected", () => {
+    console.warn("Discord disconnected — waiting to reconnect...");
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    isWaiting = false;
+    scheduleReconnect();
+  });
+
+  client.login({ clientId }).catch(() => scheduleReconnect());
+}
+
 // Main loop
 async function startRPC() {
   await new Promise((r) => setTimeout(r, 60));
-  await typewrite("Starting RPC Loop... \n\n", 25);
+  await typewrite("Starting RPC Loop... \n\n", 15);
 
-  setInterval(async () => {
-    console.time('AppleScript');  
+  pollInterval = setInterval(async () => {
     const info = await getMusicInfo();
-    console.timeEnd('AppleScript');  
 
-    const newTrackLine =
-      "Got a track! " +
-      " " +
-      info.name +
-      " - " +
-      info.artist +
-      " | " +
-      info.state;
+    const newTrackLine = "Got a track! " + info.name + " - " + info.artist + " | " + info.state;
     await typewrite(newTrackLine, 20);
 
     let trackKey = `${info.name}-${info.artist}`;
 
+    // Clear presence immediately when Apple Music isn't actively in use
+    if (info.state === "not running" || info.state === "idle") {
+      if (lastState !== info.state) {
+        lastState = info.state;
+        client!.clearActivity();
+      }
+      return;
+    }
+
+    // fetch and set coverrart
     let artUrl: string | null;
     if (coverArtCache.has(trackKey)) {
       artUrl = coverArtCache.get(trackKey)!;
@@ -70,40 +94,41 @@ async function startRPC() {
       coverArtCache.set(trackKey, artUrl);
     }
 
-    let errorThresholdMet = false;
-    if (artUrl == null && !errorThresholdMet) {
-      console.warn("unable to fetch cover art for this track");
-      errorThresholdMet = true;
+    if (artUrl == null) { // this should literally never happen
+      console.warn(`No cover art found for: ${info.name} - ${info.artist}`);
     }
 
-    if (trackKey !== lastTrackKey || lastState != info.state) {
+
+    if (trackKey !== lastTrackKey || lastState !== info.state) {
       lastTrackKey = trackKey;
       lastState = info.state;
 
-      client.setActivity({
-        details:
-          info.state === "playing" || info.state === "paused"
-            ? "Listening to " + info.name + " - " + info.artist : "Not listening",
-        state: info.state === "playing" ? info.album : undefined,
-        largeImageKey: artUrl ?? "applemusicrp_logo",
-        startTimestamp: Date.now() - info.position * 1000,
-        smallImageText: info.state,
-        smallImageKey: info.state === "playing" ? "play_icon" : "pause_icon",
-      
-        buttons: [
-          {label: "Open in Apple Music", url: buildSongShareURL(info.name, info.artist)}
-        ]
-      } as any);
+      const isPlaying = info.state === "playing";
+
+      (client as any).request("SET_ACTIVITY", {
+        pid: process.pid,
+        activity: {
+          type: 2,
+          details: info.name,
+          state: info.artist,
+          assets: {
+            large_image: artUrl ?? "applemusicrp_logo",
+            large_text: info.album,
+            small_image: isPlaying ? "play_icon" : "pause_icon",
+            small_text: isPlaying ? "Playing" : "Paused",
+          },
+          ...(isPlaying && {
+            timestamps: {
+              start: Math.round((Date.now() - info.position * 1000) / 1000),
+            },
+          }),
+          buttons: [
+            { label: "Open in Apple Music", url: buildSongShareURL(info.name, info.artist) },
+          ],
+        },
+      });
     }
-  }, 10_000);
+  }, 5_000);
 }
 
-client.on("ready", () => {
-  console.log("✅ Discord RPC connected");
-  startRPC();
-});
-
-client.login({ clientId }).catch((err) => {
-  console.error("❌ RPC login failed:", err);
-  // process.exit(1);
-});
+connect();

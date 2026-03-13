@@ -1,13 +1,20 @@
 // imports
 import RPC from "discord-rpc";
 
+import dotenv from 'dotenv/config';
+const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+if(!CLIENT_ID){
+  console.error("Error: DISCORD_CLIENT_ID is not set in .env. Please create a new .env file and see README for instructions.");
+  process.exit(1); 
+}
+
 import { getMusicInfo } from "./music.ts";
 import { typewrite } from "./typewriter.ts";
 import { fetchCoverArt } from "./coverart.ts";
 import type { TrackInfo } from "./types/track.ts";
 
 const RETRY_MS = 15_000;
-const clientId = "1383582633547792505";
+const clientId = process.env.DISCORD_CLIENT_ID;
 
 let isWaiting = false;
 let client: RPC.Client | null = null;
@@ -60,7 +67,7 @@ function connect() {
     scheduleReconnect();
   });
 
-  client.login({ clientId }).catch(() => scheduleReconnect());
+  client.login({ clientId: CLIENT_ID }).catch(() => scheduleReconnect());
 }
 
 // Main loop
@@ -68,11 +75,18 @@ async function startRPC() {
   await new Promise((r) => setTimeout(r, 60));
   await typewrite("Starting RPC Loop... \n\n", 15);
 
+  let lastTrack: string;
+
   pollInterval = setInterval(async () => {
     const info = await getMusicInfo();
 
-    const newTrackLine = "Got a track! " + info.name + " - " + info.artist + " | " + info.state;
-    await typewrite(newTrackLine, 20);
+    if(!lastTrack || lastTrack != info.name){
+      lastTrack = info.name;
+
+      const newTrackLine = "New track: " + info.name + " - " + info.artist + " | " + info.state;
+      await typewrite(newTrackLine, 10);
+    }
+
 
     let trackKey = `${info.name}-${info.artist}`;
 

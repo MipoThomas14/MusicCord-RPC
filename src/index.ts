@@ -10,11 +10,12 @@ if(!CLIENT_ID){
 
 import { getMusicInfo } from "./music.ts";
 import { typewrite } from "./typewriter.ts";
-import { fetchCoverArt } from "./coverart.ts";
+import { getCoverArt } from "./coverart/cache.ts";
 import type { TrackInfo } from "./types/track.ts";
 
 const RETRY_MS = 15_000;
-const clientId = process.env.DISCORD_CLIENT_ID;
+// the guard above narrows CLIENT_ID, but TS drops that inside hoisted functions like connect()
+const clientId: string = CLIENT_ID;
 
 let isWaiting = false;
 let client: RPC.Client | null = null;
@@ -22,7 +23,7 @@ let pollInterval: NodeJS.Timeout | null = null;
 
 let lastTrackKey: string;
 let lastState: TrackInfo["state"] | null = null;
-const coverArtCache = new Map<string, string | null>();
+let lastArtUrl: string | null | undefined;
 
 
 function buildSongShareURL(name: string, artist: string): string {
@@ -67,18 +68,25 @@ function connect() {
     scheduleReconnect();
   });
 
-  client.login({ clientId: CLIENT_ID }).catch(() => scheduleReconnect());
+  client.login({ clientId }).catch(() => scheduleReconnect());
 }
 
 // Main loop
 async function startRPC() {
-  await new Promise((r) => setTimeout(r, 60));
+  await new Promise((r) => setTimeout(r, 30));
   await typewrite("Starting RPC Loop... \n\n", 15);
 
   let lastTrack: string;
 
   pollInterval = setInterval(async () => {
-    const info = await getMusicInfo();
+    let info: TrackInfo;
+    try {
+      info = await getMusicInfo();
+    } catch (err) {
+      // don't kill the entire process and therefore musiccord for a possible blip
+      console.warn("Couldn't read Music, skipping this poll:", err instanceof Error ? err.message : err);
+      return;
+    }
 
     if(!lastTrack || lastTrack != info.name){
       lastTrack = info.name;
@@ -100,22 +108,14 @@ async function startRPC() {
     }
 
     // fetch and set coverrart
-    let artUrl: string | null;
-    if (coverArtCache.has(trackKey)) {
-      artUrl = coverArtCache.get(trackKey)!;
-    } else {
-      artUrl = await fetchCoverArt(info.name, info.artist);
-      coverArtCache.set(trackKey, artUrl);
-    }
-
-    if (artUrl == null) { // this should literally never happen
-      console.warn(`No cover art found for: ${info.name} - ${info.artist}`);
-    }
+    const artUrl = await getCoverArt(info.name, info.artist, info.album, info.genre);
 
 
-    if (trackKey !== lastTrackKey || lastState !== info.state) {
+    // artUrl in the check so a late cover still updates presence
+    if (trackKey !== lastTrackKey || lastState !== info.state || artUrl !== lastArtUrl) {
       lastTrackKey = trackKey;
       lastState = info.state;
+      lastArtUrl = artUrl;
 
       const isPlaying = info.state === "playing";
 

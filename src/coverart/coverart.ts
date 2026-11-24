@@ -5,12 +5,12 @@ import {
   findCoverViaArtistId,
 } from "./itunes.ts";
 import { storefrontsForGenre } from "./storefronts.ts";
-// import {
-//   resolveWithMusicBrainz,
-//   pickStorefronts,
-//   fetchFromCoverArtArchive,
-//   type MbMatch,
-// } from "./musicbrainz.ts";
+import {
+  resolveWithMusicBrainz,
+  // pickStorefronts,
+  fetchFromCoverArtArchive,
+  type MbMatch,
+} from "./musicbrainz.ts";
 import { stripSuffixes, isNonLatin, errMsg, primaryArtist } from "./text.ts";
 
 
@@ -51,7 +51,7 @@ export async function fetchCoverArt(name: string, artist: string, album: string,
       const results = await searchItunes(`${v.artist} ${v.name}`);
       const hit = findItunesMatch(results, v.name, [v.artist], album, v.loose);
       if (hit){
-        console.log("success on first iTunes pass")
+        console.log("success on first iTunes pass");
         return hiResArt(hit);
       }
     } catch (err) {
@@ -82,59 +82,38 @@ export async function fetchCoverArt(name: string, artist: string, album: string,
 
 
   // Pass 3: resolve the artist/track on MusicBrainz (credited name, releases)
-  // let match: MbMatch | null = null;
-  // let matchedVariant = variants[0];
-  // for (const v of variants) {
-  //   try {
-  //     match = await resolveWithMusicBrainz(v.name, v.artist, album, v.loose);
-  //     console.log("success on first musicbrainz pass")
-  //   } catch (err) {
-  //     incomplete = true;
-  //     console.warn("MusicBrainz pass failed:", errMsg(err));
-  //     continue;
-  //   }
-  //   if (match) {
-  //     matchedVariant = v;
-  //     break;
-  //   }
-  // }
+  let match: MbMatch | null = null;
+  let matchedVariant = variants[0];
+  for (const v of variants) {
+    try {
+      match = await resolveWithMusicBrainz(v.name, v.artist, album, v.loose);
+    } catch (err) {
+      incomplete = true;
+      console.warn("MusicBrainz pass failed:", errMsg(err));
+      continue;
+    }
+    if (match) {
+      console.log("success on first musicbrainz pass")
+      matchedVariant = v;
+      break;
+    }
+  }
 
-  // if (!match) return miss();
-  // if (match.incomplete) incomplete = true;
+  if (!match) return miss();
+  if (match.incomplete) incomplete = true;
 
-  // Pass 4: non-Latin artist -> retry iTunes in their storefront, searching
-  // by the credited name (e.g. 杏里) rather than the romanized one.
-  // const creditedName =
-  //   match.scriptNames.find(isNonLatin) ??
-  //   match.scriptNames[0] ??
-  //   matchedVariant.artist;
-  // for (const country of pickStorefronts(match)) {
-  //   try {
-  //     const results = await searchItunes(
-  //       `${creditedName} ${matchedVariant.name}`,
-  //       country
-  //     );
-  //     const hit = findItunesMatch(
-  //       results,
-  //       matchedVariant.name,
-  //       [matchedVariant.artist, ...match.artistNames],
-  //       album,
-  //       matchedVariant.loose
-  //     );
-  //     if (hit) console.log("second itunes pass success"); return hiResArt(hit);
-  //   } catch (err) {
-  //     incomplete = true;
-  //     // console.warn(`iTunes ${country} storefront pass failed:`, errMsg(err));
-  //   }
-  // }
 
-  // Pass 5: Cover Art Archive, using the releases MusicBrainz already gave us
-  // try {
-  //   const art = await fetchFromCoverArtArchive(match.releaseIds);
-  //   if (art) console.log("coverart pass success"); return art;
-  // } catch (err) {
-  //   incomplete = true;
-  //   // console.warn("Cover Art Archive pass failed:", errMsg(err));
-  // }
+
+  // Pass 4: Cover Art Archive, using the releases MusicBrainz already gave us
+  try {
+    const art = await fetchFromCoverArtArchive(match.releaseIds);
+    if (art) {
+      console.log("coverart pass success");
+      return art;
+    }
+  } catch (err) {
+    incomplete = true;
+    console.warn("Cover Art Archive pass failed:", errMsg(err));
+  }
   return miss();
 }

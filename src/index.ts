@@ -79,7 +79,14 @@ async function startRPC() {
   let lastTrack: string;
 
   pollInterval = setInterval(async () => {
-    const info = await getMusicInfo();
+    let info: TrackInfo;
+    try {
+      info = await getMusicInfo();
+    } catch (err) {
+      // don't kill the entire process and therefore musiccord for a possible blip
+      console.warn("Couldn't read Music, skipping this poll:", err instanceof Error ? err.message : err);
+      return;
+    }
 
     if(!lastTrack || lastTrack != info.name){
       lastTrack = info.name;

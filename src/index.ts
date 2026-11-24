@@ -73,7 +73,7 @@ function connect() {
 
 // Main loop
 async function startRPC() {
-  await new Promise((r) => setTimeout(r, 60));
+  await new Promise((r) => setTimeout(r, 30));
   await typewrite("Starting RPC Loop... \n\n", 15);
 
   let lastTrack: string;

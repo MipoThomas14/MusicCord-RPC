@@ -1,11 +1,11 @@
-import { fetchCoverArt } from "./coverart.ts";
+import { fetchCoverArt, CoverArtIncompleteError, type StageMisses } from "./coverart.ts";
 
-// cooldown before retrying a lookup that failed (not a real miss)
 const RETRY_AFTER_FAILURE_MS = 30_000;
 
 interface Entry {
   url: string | null;
-  retryAt?: number; // set when the lookup failed
+  retryAt?: number; //  when the lookup failed
+  missed?: StageMisses; // stages that already missed cleanly; a retry skips them
 }
 
 const cache = new Map<string, Entry>();
@@ -19,7 +19,6 @@ export function getCoverArt(
   album: string,
   genre: string = ""
 ): Promise<string | null> {
-  // album is in the key: same song on another album has different art
   const key = JSON.stringify([name, artist, album]);
 
   const hit = cache.get(key);
@@ -32,12 +31,13 @@ export function getCoverArt(
 
   const lookup = (async () => {
     try {
-      const url = await fetchCoverArt(name, artist, album, genre);
+      const url = await fetchCoverArt(name, artist, album, genre, hit?.missed);
       cache.set(key, { url });
       return url;
     } catch (err) {
-
-      cache.set(key, { url: null, retryAt: Date.now() + RETRY_AFTER_FAILURE_MS });
+      // keep what we know: retry only the stage(s) that failed
+      const missed = err instanceof CoverArtIncompleteError ? err.missed : hit?.missed;
+      cache.set(key, { url: null, retryAt: Date.now() + RETRY_AFTER_FAILURE_MS, missed });
       console.warn(
         `Cover art lookup for "${name}" didn't finish; retrying in ${
           RETRY_AFTER_FAILURE_MS / 1000

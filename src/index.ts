@@ -10,7 +10,7 @@ if(!CLIENT_ID){
 
 import { getMusicInfo } from "./music.ts";
 import { typewrite } from "./typewriter.ts";
-import { fetchCoverArt } from "./coverart.ts";
+import { getCoverArt } from "./coverart/cache.ts";
 import type { TrackInfo } from "./types/track.ts";
 
 const RETRY_MS = 15_000;
@@ -23,7 +23,7 @@ let pollInterval: NodeJS.Timeout | null = null;
 
 let lastTrackKey: string;
 let lastState: TrackInfo["state"] | null = null;
-const coverArtCache = new Map<string, string | null>();
+let lastArtUrl: string | null | undefined;
 
 
 function buildSongShareURL(name: string, artist: string): string {
@@ -108,22 +108,14 @@ async function startRPC() {
     }
 
     // fetch and set coverrart
-    let artUrl: string | null;
-    if (coverArtCache.has(trackKey)) {
-      artUrl = coverArtCache.get(trackKey)!;
-    } else {
-      artUrl = await fetchCoverArt(info.name, info.artist);
-      coverArtCache.set(trackKey, artUrl);
-    }
-
-    if (artUrl == null) { // this should literally never happen
-      console.warn(`No cover art found for: ${info.name} - ${info.artist}`);
-    }
+    const artUrl = await getCoverArt(info.name, info.artist, info.album, info.genre);
 
 
-    if (trackKey !== lastTrackKey || lastState !== info.state) {
+    // artUrl in the check so a late cover still updates presence
+    if (trackKey !== lastTrackKey || lastState !== info.state || artUrl !== lastArtUrl) {
       lastTrackKey = trackKey;
       lastState = info.state;
+      lastArtUrl = artUrl;
 
       const isPlaying = info.state === "playing";
 

@@ -14,7 +14,8 @@ import { fetchCoverArt } from "./coverart.ts";
 import type { TrackInfo } from "./types/track.ts";
 
 const RETRY_MS = 15_000;
-const clientId = process.env.DISCORD_CLIENT_ID;
+// the guard above narrows CLIENT_ID, but TS drops that inside hoisted functions like connect()
+const clientId: string = CLIENT_ID;
 
 let isWaiting = false;
 let client: RPC.Client | null = null;
@@ -67,7 +68,7 @@ function connect() {
     scheduleReconnect();
   });
 
-  client.login({ clientId: CLIENT_ID }).catch(() => scheduleReconnect());
+  client.login({ clientId }).catch(() => scheduleReconnect());
 }
 
 // Main loop

@@ -1,10 +1,14 @@
 import { fetchCoverArt, CoverArtIncompleteError, type StageMisses } from "./coverart.ts";
 
-const RETRY_AFTER_FAILURE_MS = 30_000;
+const BASE_RETRY_MS = 60_000;
+const MAX_RETRIES = 3;
+const JITTER = 0.25; // +-25% jitter
+const backoffMs = (retry: number) => BASE_RETRY_MS * 2 ** retry * (1 + (Math.random() * 2 - 1) * JITTER);
 
 interface Entry {
   url: string | null;
   retryAt?: number; //  when the lookup failed
+  failures?: number; // failed attempts so far
   missed?: StageMisses; // stages that already missed cleanly; a retry skips them
 }
 
@@ -37,12 +41,15 @@ export function getCoverArt(
     } catch (err) {
       // keep what we know: retry only the stage(s) that failed
       const missed = err instanceof CoverArtIncompleteError ? err.missed : hit?.missed;
-      cache.set(key, { url: null, retryAt: Date.now() + RETRY_AFTER_FAILURE_MS, missed });
-      console.warn(
-        `Cover art lookup for "${name}" didn't finish; retrying in ${
-          RETRY_AFTER_FAILURE_MS / 1000
-        }s`
-      );
+      const failures = (hit?.failures ?? 0) + 1;
+
+      if (failures > MAX_RETRIES) { // recorded in cache as a hard miss
+        cache.set(key, { url: null });
+        return null;
+      }
+
+      const delay = backoffMs(failures - 1);
+      cache.set(key, { url: null, retryAt: Date.now() + delay, failures, missed });
       return null;
     } finally {
       inflight.delete(key);
